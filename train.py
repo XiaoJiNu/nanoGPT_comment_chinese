@@ -37,23 +37,32 @@ eval_interval = 2000
 log_interval = 1
 eval_iters = 200
 eval_only = False  # if True, script exits right after the first eval
-always_save_checkpoint = True  # if True, always save a checkpoint after each eval
+always_save_checkpoint = False  # if True, always save a checkpoint after each eval
 init_from = 'scratch'  # 'scratch' or 'resume' or 'gpt2*'
+
 # wandb logging
 wandb_log = False  # disabled by default
 wandb_project = 'owt'
 wandb_run_name = 'gpt2'  # 'run' + str(time.time())
+
 # data
-dataset = 'openwebtext'
+dataset = 'shakespeare'
 gradient_accumulation_steps = 5 * 8  # used to simulate larger batch sizes
-batch_size = 12  # if gradient_accumulation_steps > 1, this is the micro-batch size
-block_size = 1024
+batch_size = 4    # if gradient_accumulation_steps > 1, this is the micro-batch size
+block_size = 256  # 一个样本的长度
+
 # model
-n_layer = 12
-n_head = 12
-n_embd = 768
-dropout = 0.0  # for pretraining 0 is good, for finetuning try 0.1+
+# n_layer = 12
+# n_head = 12
+# n_embd = 768
+# dropout = 0.0  # for pretraining 0 is good, for finetuning try 0.1+
 bias = False  # do we use bias inside LayerNorm and Linear layers?
+# baby GPT model :)
+n_layer = 6
+n_head = 6
+n_embd = 384
+dropout = 0.2
+
 # adamw optimizer
 learning_rate = 6e-4  # max learning rate
 max_iters = 600000  # total number of training iterations
@@ -312,7 +321,16 @@ while True:
         scaler.unscale_(optimizer)
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
     # step the optimizer and scaler if training in fp16
+    # scaler.step(optimizer):
+    #     This line updates the parameters of the model based on the computed gradients.
+    #     The gradients are scaled by the current scale factor of the GradScaler object.
+    #     This is equivalent to calling optimizer.step() in a non-scaled context.
     scaler.step(optimizer)
+    # scaler.update():
+    #     This line updates the scale factor used by the GradScaler. If the gradients are finite,
+    #     the scale factor is increased to allow for higher precision. If the gradients are not finite
+    #     (i.e., they are too large or too small), the scale factor is decreased to prevent underflow or overflow.
+    #     This adjustment helps to ensure numerical stability when training with mixed precision
     scaler.update()
     # flush the gradients as soon as we can, no need for this memory anymore
     optimizer.zero_grad(set_to_none=True)
